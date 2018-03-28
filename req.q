@@ -1,6 +1,9 @@
 \d .req
 
-prsu:{.Q.hap[hsym $[10=type y;`$y;y]]x}                                             //parse URL, return one element
+prsu:$[.z.K<3.6;                                                                    //in 3.6+ .Q.hap takes a string
+        {.Q.hap[hsym $[10=type y;`$y;y]]x};                                         //parse URL, return one element
+        {.Q.hap[$[11=type y;string[y];y]]x}                                         //parse URL, return one element TODO: could be hsym, detect & trim
+     ];
 prot:prsu[0]                                                                        //get protocol from URL
 user:prsu[1]                                                                        //get username from URL
 host:prsu[2]                                                                        //get hostname from URL
