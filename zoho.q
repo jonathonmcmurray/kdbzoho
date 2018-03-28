@@ -10,7 +10,8 @@ cfg:update days:"I"$" "vs'days from ("S*I";1#",")0:`:config.csv;                
 cfg:`days xkey ungroup cfg;                                                         //create keyed table for config per day
 al:`322556000001913407                                                              //annual leave job id
 ph:`322556000001913389                                                              //public holiday job id
-params:.Q.def[`month`user!(`month$.z.D;.zh.user)] .Q.opt .z.x;                      //parse command line args
+params:.Q.def[`month`user!(`month$.z.D;`$user)] first each .Q.opt .z.x;             //parse command line args
+@[`.zh.params;`user;string];                                                        //convert username back to string
 
 /* INTERNALS */
 
@@ -29,7 +30,7 @@ lg0:{1 string[.z.T]," - ",x}                                                    
 lg:{lg0 x,"\n"}                                                                     //wrapper for logging with new line
 
 lg"Getting public holidays...";
-hols:api["leave/getHolidays"]enlist[`userId]!enlist user                            //get public hols from API
+hols:api["leave/getHolidays"]enlist[`userId]!enlist params`user                     //get public hols from API
 hols:"D"$hols[`fromDate];                                                           //get holiday dates & convert to KDB type
 
 /* PUBLIC API FUNCTIONS */

@@ -75,7 +75,7 @@ send:{[m;u;hd;p] /m-method,u-url,hd-headers,p-payload
   if[r[0][`status] within 300 399;                                                  //if status is 3XX, redirect FIX: not all 3XX are redirects?
      lo:$["/"=r[0][`Location]0;prot[u],user[u],host[u],r[0]`Location;r[0]`Location]; //detect if relative or absolute redirect
      :.z.s[m;lo;hd;p]];                                                             //perform redirections if needed
-  if[not r[0][`status]=200;break;'st];                                              //signal if bad status FIX: handle different status codes - descriptive signals
+  if[not r[0][`status]=200;'string r[0]`status];                                    //signal if bad status FIX: handle different status codes - descriptive signals
   :r;
  }
 
