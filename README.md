@@ -4,7 +4,7 @@ Script for logging time on Zoho People from KDB
 
 To use, you will need an authentication token. Get this from [here](https://accounts.zoho.com/apiauthtoken/create?SCOPE=zohopeople/peopleapi) (must be signed in to Zoho for this to work) and save in a text file named `zohotoken` in the directory.
 
-You will need to provide your username (i.e. email address associated with your account). You can do this with the `-email user@domain.ext` command line paramter, or you can change the default by editing the `user` variable near the top of `zoho.q`
+You will need to provide your username (i.e. email address associated with your account). You can do this with the `-user user@domain.ext` command line paramter, or you can change the default by editing the `user` variable near the top of `zoho.q`
 
 Edit `config.csv` with relevent jobIds (run `q zoho.q -jobs` to see jobs assigned to you), days (2-6 being Mon-Fri) and hours for job (currently multiple jobs on a given day will likely not work, but is untested)
 
