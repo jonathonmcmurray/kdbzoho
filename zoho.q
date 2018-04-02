@@ -1,5 +1,5 @@
 /load requests lib, Zoho API needs redirects,urlencode etc.
-\l req.q
+\l reQ/req.q
 
 \d .zh
 
