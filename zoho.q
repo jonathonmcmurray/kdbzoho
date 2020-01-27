@@ -1,5 +1,5 @@
 /load requests lib, Zoho API needs redirects,urlencode etc.
-\l reQ/req.q
+\l lib/req_0.1.3.q
 
 \d .zh
 
@@ -20,8 +20,8 @@ token:first read0`:zohotoken                                                    
 ad:enlist[`authtoken]!enlist token;                                                 //authentication dictionary base
 
 api:{[m;p] /m-method,p-params
-  r:.req.get[url,m,"?",.req.urlencode ad,p;()!()];                                  //pass params urlencoded, use .req.get for redirects etc.
-  :.j.k[r][`response][`result];                                                     //parse result and return
+  r:.req.get[url,m,"?",.url.enc ad,p;()!()];                                        //pass params urlencoded, use .req.get for redirects etc.
+  :r[`response][`result];                                                           //parse result and return
  }
 
 zdate:{[d]ssr[string d;".";"-"]}                                                    //convert date to Zoho
