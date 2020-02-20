@@ -8,8 +8,8 @@
 user:"jonathon.mcmurray@aquaq.co.uk"                                                //user ID (email)
 cfg:update days:"I"$" "vs'days from ("S*I";1#",")0:`:config.csv;                    //load config file
 cfg:`days xkey ungroup cfg;                                                         //create keyed table for config per day
-al:`322556000001913407                                                              //annual leave job id
-ph:`322556000001913389                                                              //public holiday job id
+al:`322556000000129615                                                              //annual leave job id
+ph:`322556000001506017                                                              //public holiday job id
 params:.Q.def[`month`user!(`month$.z.D;`$user)] first each .Q.opt .z.x;             //parse command line args
 @[`.zh.params;`user;string];                                                        //convert username back to string
 
@@ -41,14 +41,14 @@ getjobs:{[u] /u-user(email)
   j:api["timetracker/getjobs"]enlist[`assignedTo]!enlist u;                         //perform API request
   :lower[c] xcol (c:(union/)key each j)#/:j;                                        //return as table
  }
-jmap:exec (`$jobid)!" - "sv/:flip (clientname;jobname) from getjobs params`user;    //map jobids to names
+jmap:exec (`$jobid)!" - "sv/:flip (clientname;jobname) from jobs:getjobs params`user; //map jobids to names
 
 getleave:{[u] /u-user(email)
   /* get dictionary of full & half days of leave for given user */
   lg"Getting leave for ",u;
   w:`searchColumn`searchValue!("EMPLOYEEMAILALIAS";u);                              //params dict
   h:api["forms/P_ApplyLeave/getRecords";w];                                         //send request
-  h:update f:"D"$From,t:"D"$To,d:"F"$Daystaken from raze value raze h;              //parse to table & update types
+  h:update f:"D"$From,t:"D"$To,d:"F"$Daystaken from (uj/)value raze h;              //parse to table & update types
   f:exec raze .zh.range'[f;t] from h where d>0.5;                                   //get all dates with full days off
   d:exec raze f from h where d=0.5;                                                 //get all dates with half days off
   :`full`half!(f;d);                                                                //return dictionary
@@ -100,9 +100,13 @@ logmonth:{[u;m] /u-user(email),m-month
 
 
 if[`jobs in key .zh.params;
-   show `jobname`clientname`jobid#.zh.getjobs .zh.params`user;
-   exit 0;
+  show `jobname`clientname`projectname`jobid#.zh.jobs;
   ];
 
+if[not `jobs in key .zh.params;
+  .zh.logmonth . .zh.params`user`month;                                                //log the specified month (default this month)
+  ];
 
-.zh.logmonth . .zh.params`user`month;                                                //log the specified month (default this month)
+if[not `noexit in key .zh.params;
+  exit 0;
+  ];
