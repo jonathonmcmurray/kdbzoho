@@ -12,6 +12,10 @@ al:`322556000000129615                                                          
 ph:`322556000001506017                                                              //public holiday job id
 params:.Q.def[`month`user!(`month$.z.D;`$user)] first each .Q.opt .z.x;             //parse command line args
 @[`.zh.params;`user;string];                                                        //convert username back to string
+retries:5;                                                                          //number of retries
+
+.req.PARSE:0b;                                                                      //disable reQ auto-parsing to allow custom error handling
+.req.SIGNAL:0b;                                                                     //disable reQ signalling on HTTP error codes for custom error handling
 
 /* INTERNALS */
 
@@ -19,8 +23,25 @@ url:"http://people.zoho.com/people/api/"                                        
 token:first read0`:zohotoken                                                        //read auth token
 ad:enlist[`authtoken]!enlist token;                                                 //authentication dictionary base
 
+sleep:{x:string x; system("sleep ",x;"timeout /t ",x," >nul")[.z.o in `w32`w64]}    //platform agnostic sleep
+
 api:{[m;p] /m-method,p-params
-  r:.req.get[url,m,"?",.url.enc ad,p;()!()];                                        //pass params urlencoded, use .req.get for redirects etc.
+  i:0;s:0;
+  while[(i<retries)&s<>200;
+   r:.req.get[url,m,"?",.url.enc ad,p;()!()];                                       //pass params urlencoded, use .req.get for redirects etc.
+   h:r[0];r:.j.k r[1];                                                              //split headers & result body, parsing json
+   if[200<>s:h`status;                                                              //check if response is OK
+    e:r[`response][`errors];                                                        //extract API error
+    lg"Zoho API error [",string[e`code],"] ",e`message;                             //output error returned from Zoho API
+    if[7202=e`code;
+     lg"Please provide valid authentication token";                                 //if error is bad token, no point retrying
+     exit 1;
+    ];
+    lg"Retrying in 10 minutes";
+    sleep 600;                                                                      //wait 10 minutes then try again
+    i+:1;
+   ];
+  ];
   :r[`response][`result];                                                           //parse result and return
  }
 
