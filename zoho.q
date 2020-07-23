@@ -99,10 +99,28 @@ logal:{[u;d;f] /u-user(email),d-date,f-fraction
   loghours[u;zdate d;al;f*8];                                                       //log annual leave
  }
 
+removeone:{[r] /r-time log record
+  lg"Removing log for ",r[`jobName]," on ",r`workDate;
+  api["timetracker/deletetimelog";enlist[`timeLogId]!enlist r`timelogId];
+ }
+
+getexisting:{[u;s;e] /u-user(email),s-start,e-end
+  :api["timetracker/gettimelogs";`user`fromDate`toDate!(u;zdate s;zdate e)];        //get timelogs already made
+ }
+
 logmonth:{[u;m] /u-user(email),m-month
   /* log all days for a month */
   lg"Logging for month ",string[m]," ...";
   d:range . 0 -1+.Q.addmonths[`date$m;0 1];                                         //generate days in month
+  r:getexisting[u;min d;max d];                                                     //remove any existing time logs to replace
+  if[count[r]&`replace in key .zh.params;
+   lg"Found ",string[count r]," existing time logs, removing";
+   removeone'[r];
+  ];
+  if[count[r]&not `replace in key .zh.params;
+   lg"Found ",string[count r]," existing time logs, skipping those dates";
+   d:d except "D"$r@\:`workDate;
+  ];
   d@:where 1<d mod 7;                                                               //filter out weekends
   h:d inter hols;                                                                   //get list of public holidays in month
   d:d except hols;                                                                  //filter out public holidays
