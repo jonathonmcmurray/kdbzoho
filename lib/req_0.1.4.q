@@ -1,3 +1,24 @@
+/ os.q taken from https://github.com/jonathonmcmurray/qutil_packages @ beaabdd
+
+\d .os
+
+es:$[.z.o like "w*";" 2>NUL";" 2>/dev/null"];                                       //error suppression dependent on os
+test:{[x]
+  /* .os.test - test if a command works on current os */
+  :@[{system x;1b};x,es;0b];                                                        //run with system & suppress error
+  }
+
+home:hsym`$getenv$[.z.o like "w*";`USERPROFILE;`HOME]                               //get home dir depending on OS
+hfile:(` sv home,)                                                                  //get file path relative to home dir
+
+read:{$[1=count a;first;]a:read0 x}                                                 //read text file, single string if one line
+write:{x 0:$[10=type y;enlist;]y}                                                   //write text file, list of strings or single
+
+hread:{read hfile x}                                                                //read file from home dir
+hwrite:{write[hfile x;y]}                                                           //write file in home dir
+
+\d .
+
 \d .url
 
 // @kind function
@@ -216,7 +237,17 @@ class:{c:div[;100];$[0=type x;.z.s[first x];99=type x;c x`status;c x]}          
 // @kind data
 // @category variable
 // @fileoverview Flag for verbose mode
-VERBOSE:@[value;`.req.VERBOSE;$[count .z.x;"-verbose" in .z.x;0b]];                 //default to non-verbose output
+VERBOSE:@[value;`.req.VERBOSE;0i];                                                  //default to non-verbose output
+
+// @kind data
+// @category variable
+// @fileoverview Flag for parsing output to q datatypes
+PARSE:@[value;`.req.PARSE;1b];                                                      //default to parsing output
+
+// @kind data
+// @category variable
+// @fileoverview Flag for signalling on HTTP errors
+SIGNAL:@[value;`.req.SIGNAL;1b];                                                    //default to signalling for HTTP errors
 
 // @kind data
 // @category variable
@@ -234,6 +265,12 @@ query:`method`url`hsym`path`headers`body`bodytype!()                            
 // @fileoverview Dictionary with Content-Types
 ty:@[.h.ty;`form;:;"application/x-www-form-urlencoded"]                             //add type for url encoded form, used for slash commands
 ty:@[ty;`json;:;"application/json"]                                                 //add type for JSON (missing in older versions of q)
+
+// @kind data
+// @category variable
+// @fileoverview Dictionary with decompress functions for Content-Encoding types
+decompress:()!()
+decompress[enlist"gzip"]:-35!
 
 // @kind function
 // @category private
@@ -288,14 +325,18 @@ buildquery:{[q]
 // @category private
 // @fileoverview Split HTTP response into headers & dict
 // @param r {string} raw HTTP response
-// @return {(dict;string)} (response header;response body)
+// @return {(dict;string;string)} (response header;response body;raw headers)
 formatresp:{[r]
   p:(0,4+first r ss 4#"\r\n") cut r;                                                //split response headers & body
+  rh:p 0;                                                                           //keep raw headers to return as text
   p:@[p;0;"statustext:",];                                                          //add key for status text line
   d:trim enlist[`]_(!/)("S:\n")0:p[0]except"\r";                                    //create dictionary of response headers
   d:lower[key d]!value d;                                                           //make headers always lower case
   d[`status]:"I"$(" "vs r)1;                                                        //add status code
-  :(d;p[1]);                                                                        //return header dict & reponse body
+  if[(`$"content-encoding")in key d;
+      p[1]:.req.decompress[d`$"content-encoding"]p[1];                              //if compressed, decompress body based on content-encoding
+    ];
+  :(d;p[1];rh);                                                                     //return header dict, reponse body, raw headers string
   }
 
 // @kind function
@@ -305,7 +346,7 @@ formatresp:{[r]
 // @param x {(dict;string)} HTTP response object
 // @return {(dict;string)} HTTP response object
 okstatus:{[v;x]
-  if[v|x[0][`status] within 200 299;:x];                                            //if in verbose mode or OK status, return
+  if[not[.req.SIGNAL]|v|x[0][`status] within 200 299;:x];                           //if signalling disabled, in verbose mode or OK status, return
   'string x[0]`status;                                                              //signal if bad status FIX: handle different status codes - descriptive signals
   }
 
@@ -320,15 +361,17 @@ okstatus:{[v;x]
 // @return {(dict;string)} HTTP response (headers;body)
 send:{[m;u;hd;p;v]
   q:@[.req.query;`method`url`headers`body;:;(m;.url.parse0[0]u;hd;p)];              //parse URL into URL object & build query
+  if[a:count q[`url]`auth;.auth.setcache . q[`url]`host`auth];                      //cache credentials if set
+  if[not a;q[`url;`auth]:.auth.getcache q[`url]`host];                              //retrieve cached credentials if not set
   q:proxy q;                                                                        //check if we need to use proxy & get proxy address
   /nu:$[@[value;`.doh.ENABLED;0b];.doh.resolve;]u;                                   //resolve URL via DNS-over-HTTPS if enabled
   hs:.url.hsurl`$raze q ./:enlist[`url`protocol],$[`proxy in key q;1#`proxy;enlist`url`host]; //get hostname as handle
   q:.cookie.addcookies[q];                                                          //add cookie headers
   q:addheaders[q];                                                                  //get dictionary of HTTP headers for request
   r:hs d:buildquery[q];                                                             //build query and execute
-  if[v;-1"-- REQUEST --\n",string[hs],"\n",d];                                      //if verbose, log request
-  if[v;-1"-- RESPONSE --\n",r];                                                     //if verbose, log response
+  if[v;neg[`int$v]"-- REQUEST --\n",string[hs],"\n",d];                             //if verbose, log request
   r:formatresp r;                                                                   //format response to headers & body
+  if[v;neg[`int$v]"-- RESPONSE --\n",r[2],"\n\n",r[1],("\n"<>last r[1])#"\n"];      //if verbose, log response
   if[(sc:`$"set-cookie") in k:key r 0;                                              //check for Set-Cookie headers
       .cookie.addcookie[q[`url;`host]]'[value[r 0]where k=sc]];                     //set any cookies necessary
   if[r[0][`status]=401;:.z.s[m;.auth.getauth[r 0;u];hd;p;v]];                       //if unauthorised prompt for user/pass FIX:should have some counter to prevent infinite loops
@@ -345,10 +388,9 @@ send:{[m;u;hd;p;v]
 // @return {any} Parsed response
 parseresp:{[r]
   / TODO - add handling for other data types? /
-  eh:`$"content-encoding";
-  if[(.z.K>=3.7)&r[0][eh]like"gzip";:.z.s(enlist[eh]_;-35!)@'r];                    //decompress gzip response on 3.7+
-  if[eh in key r 0;'"Unsupported encoding: ",r[0]eh];                               //if other encoding, or not 3.7, signal
-  :$[(`j in key`)&r[0][`$"content-type"]like .h.ty[`json],"*";.j.k;] r[1];          //check for JSON, parse if so
+  if[not .req.PARSE;:2#r];                                                          //if parsing disabled, return "raw" response (incl. headers dict)
+  f:$[(`j in key`)&r[0][`$"content-type"]like .req.ty[`json],"*";.j.k;::];          //check for JSON, parse if so
+  :@[f;r[1];r[1]];                                                                  //error trap parsing, return raw if fail
   }
 
 // @kind function
@@ -413,6 +455,53 @@ getauth:{[h;u] /h-headers,u-URL
   1"Pass: ";p:read0 0;                                                              //get password
   :.url.format @[.url.parse0[0b] u;`auth;:;s,":",p];                                //update URL with supplied username & pass
   }
+
+// @kind data
+// @category public
+// @fileoverview storage for basic auth credential cache
+cache:([host:`$()]auth:();expires:`timestamp$())
+
+// @kind function
+// @category private
+// @fileoverview cache auth string for a given host
+// @param host {string} hostname
+// @param auth {string} auth string in format "user:pass"
+// @return null
+setcache:{[host;auth]cache[`$host]:`auth`expires!(auth;.z.p+0D00:15:00)}
+
+// @kind function
+// @category private
+// @fileoverview get cached auth string for a given host
+// @param hst {string} hostname
+// @return {string} cached auth string
+getcache:{[hst]
+  r:exec first auth from cache where host=`$hst,expires>.z.p;
+  if[count r;:r];
+  if[netrcenabled;:readnetrc hst];
+  :();
+ }
+
+// @kind data
+// @category public
+// @fileoverview boolean flag to determine whether to use ~/.netrc by default
+netrcenabled:not()~key .os.hfile`.netrc
+
+// @kind data
+// @category public
+// @fileoverview location of .netrc file, by default ~/.netrc
+netrclocation:.os.hfile`.netrc
+
+// @kind function
+// @category private
+// @fileoverview retrieve login from .netrc file
+// @param host {string} hostname to get login for
+// @return {string} auth string in format "user:pass"
+readnetrc:{[host]
+  i:.os.read netrclocation;
+  t:(uj/){enlist(!/)"S*"$flip x} each (where i like "machine *") cut " " vs/:i;
+  if[0=count t:select from t where machine like host;:()];
+  :":"sv first[t]`login`password;
+ }
 
 \d .
 
