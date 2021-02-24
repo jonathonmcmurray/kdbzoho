@@ -1,5 +1,7 @@
 /load requests lib, Zoho API needs redirects,urlencode etc.
 \l lib/req_0.1.4.q
+/load OS lib, for reading auth tokens etc.
+\l lib/os_0.1.4.q
 
 \d .zh
 
@@ -20,15 +22,24 @@ retries:5;                                                                      
 /* INTERNALS */
 
 url:"http://people.zoho.com/people/api/"                                            //base url for API requests
-token:first read0`:zohotoken                                                        //read auth token
-ad:enlist[`authtoken]!enlist token;                                                 //authentication dictionary base
+accountsurl:"https://accounts.zoho.com";
+
+cid:@[.os.hread;`.zoho_client_id;{-2 x,"\nPlease run auth.q to generate tokens";exit 1}];
+cs:@[.os.hread;`.zoho_client_secret;{-2 x,"\nPlease run auth.q to generate tokens";exit 1}];
+rt:@[.os.hread;`.zoho_refresh_token;{-2 x,"\nPlease run auth.q to generate tokens";exit 1}];
+
+auth:.j.k last .req.post[accountsurl,"/oauth/v2/token?",.url.enc `refresh_token`client_id`client_secret`grant_type!(rt;cid;cs;`refresh_token);()!();()];
+if[`error in key auth;
+	-2"Error from Zoho API: ",auth`error;
+	exit 1];
+.req.def[`Authorization]:"Zoho-oauthtoken ",auth`access_token;
 
 sleep:{x:string x; system("sleep ",x;"timeout /t ",x," >nul")[.z.o in `w32`w64]}    //platform agnostic sleep
 
 api:{[m;p] /m-method,p-params
   i:0;s:0;
   while[(i<retries)&s<>200;
-   r:.req.get[url,m,"?",.url.enc ad,p;()!()];                                       //pass params urlencoded, use .req.get for redirects etc.
+   r:.req.get[url,m,"?",.url.enc p;()!()];                                          //pass params urlencoded, use .req.get for redirects etc.
    h:r[0];r:.j.k r[1];                                                              //split headers & result body, parsing json
    if[200<>s:h`status;                                                              //check if response is OK
     e:r[`response][`errors];                                                        //extract API error

@@ -2,7 +2,7 @@
 
 Script for logging time on Zoho People from KDB
 
-To use, you will need an authentication token. Get this from [here](https://accounts.zoho.com/apiauthtoken/create?SCOPE=zohopeople/peopleapi) (must be signed in to Zoho for this to work) and save in a text file named `zohotoken` in the directory.
+Before use, authentication must be setup via `auth.q`, see [auth.md](auth.md) for details.
 
 You will need to provide your username (i.e. email address associated with your account). You can do this with the `-user user@domain.ext` command line paramter, or you can change the default by editing the `user` variable near the top of `zoho.q`
 
@@ -12,11 +12,7 @@ Takes into account public holidays & annual leave - the job IDs for these can be
 
 ## Usage
 
-1. Setup `zohotoken` file as described above e.g.
-    ```
-    $ cat zohotoken
-    c8a1a9aba54fd66185a4d92701e92188
-    ```
+1. Set up authentication as per [auth.md](auth.md)
 2. Run `q zoho.q -jobs` to identify required jobids
 3. Modify `config.csv` with these jobids
 4. Modify `al` and `ph` variables in `zoho.q` with Annual Leave & Public Holiday jobids as necessary
