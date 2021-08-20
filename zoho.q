@@ -146,6 +146,34 @@ logmonth:{[u;m] /u-user(email),m-month
   lg"Finished log for ",string m;
  }
 
+formatdate:{[d]
+	months:("Jan";"Feb";"Mar";"Apr";"May";"Jun";"Jul";"Aug";"Sep";"Oct";"Nov";"Dec");
+	:"-" sv (string `dd$d;months -1+`mm$d;string `year$d);
+ }
+
+timesheet:{[u;m] /u-user(email),m-month
+	/* create timesheet for the month & submit for approval */
+	p:()!();
+	p[`user]:u;
+	p[`fromDate]:zdate fd:`date$m;
+	p[`toDate]:zdate td:-1+`date$m+1;
+	p[`timesheetName]:"Timesheet (",formatdate[fd]," - ",formatdate[td],")";
+	p[`sendforApproval]:"true";
+	// check for an existing timesheet
+	ts:.zh.api["timetracker/gettimesheet";`user`fromDate`toDate#p];
+	if[count ts;
+		lg"Timesheet already exists, ID ",first ts`recordId;
+		tsid:enlist[`timesheetId]!enlist first ts`recordId;
+	];
+	if[not count ts;
+		tsid:.zh.api["timetracker/createtimesheet";p];
+	];
+	// retrieve the timesheet details & display them to user
+	ts:.zh.api["timetracker/gettimesheetdetails";tsid];
+	details:`listName`projectName`totalHours`billHours`nonbillHours`fromDate`toDate#ts`details;
+	show @[details;`totalHours`billHours`nonbillHours;%;60];
+ }
+
 \d .
 
 
@@ -155,6 +183,7 @@ if[`jobs in key .zh.params;
 
 if[not `jobs in key .zh.params;
   .zh.logmonth . .zh.params`user`month;                                                //log the specified month (default this month)
+	ts:.zh.timesheet . .zh.params`user`month;																							 //create & submit timesheet
   ];
 
 if[not `noexit in key .zh.params;

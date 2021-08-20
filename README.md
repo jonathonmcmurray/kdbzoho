@@ -32,4 +32,3 @@ The author is not responsible for any mistakes made in your timesheets, please e
 ## Upcoming features
 
 * Display previous time logs etc.
-* Submit timesheets
