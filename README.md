@@ -28,6 +28,8 @@ The author is not responsible for any mistakes made in your timesheets, please e
 * `-jobs` : display jobs assigned to user
 * `-user` : overwrite default user email address
 * `-month` : overwrite default month (default = current month)
+* `-notimesheet` : skip automatically creating & submitting timesheet after time logs
+* `-noexit` : don't exit after running (in case you need to do anything manually)
 
 ## Upcoming features
 
