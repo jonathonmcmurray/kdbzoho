@@ -169,7 +169,7 @@ timesheet:{[u;m] /u-user(email),m-month
 		tsid:.zh.api["timetracker/createtimesheet";p];
 	];
 	// retrieve the timesheet details & display them to user
-	ts:.zh.api["timetracker/gettimesheetdetails";tsid];
+	ts:.zh.api["timetracker/gettimesheetdetails";first each tsid];
 	details:`listName`projectName`totalHours`billHours`nonbillHours`fromDate`toDate#ts`details;
 	show @[details;`totalHours`billHours`nonbillHours;%;60];
  }
@@ -183,7 +183,9 @@ if[`jobs in key .zh.params;
 
 if[not `jobs in key .zh.params;
   .zh.logmonth . .zh.params`user`month;                                                //log the specified month (default this month)
-	ts:.zh.timesheet . .zh.params`user`month;																							 //create & submit timesheet
+	if[not `notimesheet in key .zh.params;
+		ts:.zh.timesheet . .zh.params`user`month;																							 //create & submit timesheet
+	];
   ];
 
 if[not `noexit in key .zh.params;
